@@ -1,10 +1,10 @@
 val ktorVersion = "2.3.12"
-val kotlinVersion = "1.9.24"
+val kotlinVersion = "2.4.20"
 val logbackVersion = "1.4.14"
 
 plugins {
-    kotlin("jvm") version "1.9.24"
-    kotlin("plugin.serialization") version "1.9.24"
+    kotlin("jvm") version "2.4.20"
+    kotlin("plugin.serialization") version "2.4.20"
     application
 }
 
@@ -29,6 +29,11 @@ dependencies {
     implementation("io.ktor:ktor-server-cors-jvm:$ktorVersion")
     implementation("io.ktor:ktor-server-call-logging-jvm:$ktorVersion")
     implementation("io.ktor:ktor-server-config-yaml:$ktorVersion")
+
+    // Ktor client (used to call third-party APIs, e.g. CLIP)
+    implementation("io.ktor:ktor-client-core-jvm:$ktorVersion")
+    implementation("io.ktor:ktor-client-cio-jvm:$ktorVersion")
+    implementation("io.ktor:ktor-client-content-negotiation-jvm:$ktorVersion")
 
     // Logging
     implementation("ch.qos.logback:logback-classic:$logbackVersion")

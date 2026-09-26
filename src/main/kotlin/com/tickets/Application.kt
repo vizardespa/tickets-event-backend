@@ -3,14 +3,18 @@ package com.tickets
 import com.tickets.models.ErrorResponse
 import com.tickets.models.HealthStatus
 import com.tickets.routes.eventRoutes
+import com.tickets.routes.paymentRoutes
 import com.tickets.routes.ticketRoutes
 import com.tickets.services.BadRequestException
+import com.tickets.services.ClipPaymentException
+import com.tickets.services.ClipPaymentService
 import com.tickets.services.EventService
 import com.tickets.services.NotFoundException
 import com.tickets.services.TicketService
 import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.Application
+import io.ktor.server.application.ApplicationStopped
 import io.ktor.server.application.call
 import io.ktor.server.application.install
 import io.ktor.server.engine.embeddedServer
@@ -71,6 +75,12 @@ fun Application.module() {
                 ErrorResponse(error = "bad_request", message = cause.message ?: "Bad request")
             )
         }
+        exception<ClipPaymentException> { call, cause ->
+            call.respond(
+                HttpStatusCode.BadGateway,
+                ErrorResponse(error = "clip_payment_error", message = cause.message ?: "CLIP payment failed")
+            )
+        }
         exception<Throwable> { call, cause ->
             call.respond(
                 HttpStatusCode.InternalServerError,
@@ -82,6 +92,11 @@ fun Application.module() {
     // Dependency wiring (in-memory services)
     val eventService = EventService()
     val ticketService = TicketService(eventService)
+    val clipPaymentService = ClipPaymentService()
+
+    environment.monitor.subscribe(ApplicationStopped) {
+        clipPaymentService.close()
+    }
 
     routing {
         get("/health") {
@@ -89,5 +104,6 @@ fun Application.module() {
         }
         eventRoutes(eventService)
         ticketRoutes(ticketService)
+        paymentRoutes(clipPaymentService)
     }
 }
