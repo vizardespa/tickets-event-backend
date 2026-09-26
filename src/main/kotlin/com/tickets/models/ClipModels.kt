@@ -54,11 +54,22 @@ data class ClipPaymentResponse(
     val status: String? = null,
     @SerialName("status_detail") val statusDetail: ClipStatusDetail? = null,
     @SerialName("receipt_no") val receiptNo: String? = null,
-    @SerialName("created_at") val createdAt: String? = null
+    @SerialName("created_at") val createdAt: String? = null,
+    @SerialName("pending_action") val pendingAction: ClipPendingAction? = null
 )
 
 @Serializable
 data class ClipStatusDetail(
     val code: String? = null,
     val message: String? = null
+)
+
+/**
+ * Present when CLIP requires additional client-side action (e.g. 3DS authentication).
+ * See: https://developer.clip.mx/reference/autenticacion-3ds-sdk
+ */
+@Serializable
+data class ClipPendingAction(
+    val url: String? = null,
+    val type: String? = null
 )

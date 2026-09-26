@@ -9,6 +9,7 @@ import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.engine.cio.CIO
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
@@ -60,6 +61,38 @@ class ClipPaymentService(
                 contentType(ContentType.Application.Json)
                 header("Authorization", "Bearer $clipApiKey")
                 setBody(payload)
+            }
+        } catch (ex: Exception) {
+            throw ClipPaymentException("Could not reach CLIP payments API: ${ex.message}")
+        }
+
+        if (!response.status.isSuccess()) {
+            val errorBody = runCatching { response.bodyAsText() }.getOrDefault("")
+            throw ClipPaymentException(
+                "CLIP payments API returned ${response.status.value}: $errorBody"
+            )
+        }
+
+        return try {
+            response.body<ClipPaymentResponse>()
+        } catch (ex: Exception) {
+            throw ClipPaymentException("Could not parse CLIP payments API response: ${ex.message}")
+        }
+    }
+
+    /**
+     * Queries CLIP's `GET /payments/{id}` endpoint to check the final status of a payment,
+     * used after a 3DS authentication flow completes on the client.
+     * See: https://developer.clip.mx/reference/autenticacion-3ds-sdk
+     */
+    suspend fun getStatus(paymentId: String): ClipPaymentResponse {
+        if (paymentId.isBlank()) {
+            throw BadRequestException("paymentId is required")
+        }
+
+        val response: HttpResponse = try {
+            client.get("$baseUrl/payments/$paymentId") {
+                header("Authorization", "Bearer $clipApiKey")
             }
         } catch (ex: Exception) {
             throw ClipPaymentException("Could not reach CLIP payments API: ${ex.message}")
