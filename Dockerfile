@@ -1,5 +1,5 @@
 # ---- Build stage ----
-FROM gradle:8.7-jdk17 AS builder
+FROM gradle:9.4.1-jdk21 AS builder
 WORKDIR /app
 
 # Copy build configuration first for better layer caching
