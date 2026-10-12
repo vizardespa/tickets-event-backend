@@ -1,50 +1,50 @@
 package com.tickets.services
 
+import com.tickets.db.EventsTable
 import com.tickets.models.Event
 import com.tickets.models.EventRequest
 import java.time.Instant
 import java.util.UUID
-import java.util.concurrent.ConcurrentHashMap
+import org.jetbrains.exposed.sql.ResultRow
+import org.jetbrains.exposed.sql.SortOrder
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.minus
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.plus
+import org.jetbrains.exposed.sql.and
+import org.jetbrains.exposed.sql.deleteWhere
+import org.jetbrains.exposed.sql.insert
+import org.jetbrains.exposed.sql.selectAll
+import org.jetbrains.exposed.sql.transactions.transaction
+import org.jetbrains.exposed.sql.update
 
 /**
- * In-memory business logic for events, backed by a concurrent map.
+ * MySQL-backed business logic for events, stored in [EventsTable].
  */
 class EventService {
 
-    private val events = ConcurrentHashMap<String, Event>()
+    private fun ResultRow.toEvent() = Event(
+        id = this[EventsTable.id],
+        name = this[EventsTable.name],
+        description = this[EventsTable.description],
+        venue = this[EventsTable.venue],
+        date = this[EventsTable.date],
+        totalSeats = this[EventsTable.totalSeats],
+        availableSeats = this[EventsTable.availableSeats],
+        price = this[EventsTable.price],
+        createdAt = this[EventsTable.createdAt]
+    )
 
-    init {
-        // Seed a couple of sample events so the API is useful out of the box.
-        val sample1 = Event(
-            id = UUID.randomUUID().toString(),
-            name = "Kotlin Conf 2026",
-            description = "Annual conference for Kotlin developers.",
-            venue = "Amsterdam Convention Center",
-            date = "2026-05-14T09:00:00Z",
-            totalSeats = 500,
-            availableSeats = 500,
-            price = 299.0,
-            createdAt = Instant.now().toString()
-        )
-        val sample2 = Event(
-            id = UUID.randomUUID().toString(),
-            name = "Live Jazz Night",
-            description = "An evening of smooth jazz.",
-            venue = "Blue Note Club",
-            date = "2026-03-02T20:00:00Z",
-            totalSeats = 80,
-            availableSeats = 80,
-            price = 45.5,
-            createdAt = Instant.now().toString()
-        )
-        events[sample1.id] = sample1
-        events[sample2.id] = sample2
+    fun getAll(): List<Event> = transaction {
+        EventsTable.selectAll()
+            .orderBy(EventsTable.date to SortOrder.ASC)
+            .map { it.toEvent() }
     }
 
-    fun getAll(): List<Event> = events.values.sortedBy { it.date }
-
-    fun getById(id: String): Event =
-        events[id] ?: throw NotFoundException("Event with id '$id' not found")
+    fun getById(id: String): Event = transaction {
+        EventsTable.selectAll().where { EventsTable.id eq id }
+            .map { it.toEvent() }
+            .firstOrNull()
+    } ?: throw NotFoundException("Event with id '$id' not found")
 
     fun create(request: EventRequest): Event {
         if (request.totalSeats < 0) {
@@ -65,7 +65,19 @@ class EventService {
             price = request.price,
             createdAt = Instant.now().toString()
         )
-        events[event.id] = event
+        transaction {
+            EventsTable.insert {
+                it[id] = event.id
+                it[name] = event.name
+                it[description] = event.description
+                it[venue] = event.venue
+                it[date] = event.date
+                it[totalSeats] = event.totalSeats
+                it[availableSeats] = event.availableSeats
+                it[price] = event.price
+                it[createdAt] = event.createdAt
+            }
+        }
         return event
     }
 
@@ -87,45 +99,62 @@ class EventService {
             availableSeats = available,
             price = request.price
         )
-        events[id] = updated
+        transaction {
+            EventsTable.update({ EventsTable.id eq id }) {
+                it[name] = updated.name
+                it[description] = updated.description
+                it[venue] = updated.venue
+                it[date] = updated.date
+                it[totalSeats] = updated.totalSeats
+                it[availableSeats] = updated.availableSeats
+                it[price] = updated.price
+            }
+        }
         return updated
     }
 
     fun delete(id: String) {
-        events.remove(id) ?: throw NotFoundException("Event with id '$id' not found")
+        val deleted = transaction {
+            EventsTable.deleteWhere { EventsTable.id eq id }
+        }
+        if (deleted == 0) {
+            throw NotFoundException("Event with id '$id' not found")
+        }
     }
 
     /**
      * Atomically decrement available seats when a ticket is purchased.
      * Returns the updated event. Throws if the event is missing or sold out.
      */
-    fun reserveSeat(eventId: String): Event {
-        return events.compute(eventId) { _, current ->
-            if (current == null) {
-                throw NotFoundException("Event with id '$eventId' not found")
-            }
-            if (current.availableSeats <= 0) {
-                throw BadRequestException("Event '${current.name}' is sold out")
-            }
-            current.copy(availableSeats = current.availableSeats - 1)
-        }!!
+    fun reserveSeat(eventId: String): Event = transaction {
+        val updatedRows = EventsTable.update({
+            (EventsTable.id eq eventId) and (EventsTable.availableSeats greater 0)
+        }) {
+            it[availableSeats] = EventsTable.availableSeats - 1
+        }
+        if (updatedRows == 0) {
+            val existing = EventsTable.selectAll().where { EventsTable.id eq eventId }
+                .map { it.toEvent() }
+                .firstOrNull() ?: throw NotFoundException("Event with id '$eventId' not found")
+            throw BadRequestException("Event '${existing.name}' is sold out")
+        }
+        EventsTable.selectAll().where { EventsTable.id eq eventId }.map { it.toEvent() }.first()
     }
 
     /**
      * Atomically increment available seats when a ticket is cancelled.
      */
     fun releaseSeat(eventId: String) {
-        events.compute(eventId) { _, current ->
-            if (current == null) {
-                return@compute null
-            }
-            if (current.availableSeats < current.totalSeats) {
-                current.copy(availableSeats = current.availableSeats + 1)
-            } else {
-                current
+        transaction {
+            EventsTable.update({
+                (EventsTable.id eq eventId) and (EventsTable.availableSeats less EventsTable.totalSeats)
+            }) {
+                it[availableSeats] = EventsTable.availableSeats + 1
             }
         }
     }
 
-    fun exists(id: String): Boolean = events.containsKey(id)
+    fun exists(id: String): Boolean = transaction {
+        EventsTable.selectAll().where { EventsTable.id eq id }.limit(1).any()
+    }
 }

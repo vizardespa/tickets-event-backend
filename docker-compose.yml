@@ -1,14 +1,42 @@
 services:
+  mysql:
+    image: mysql:8.0
+    container_name: tickets-event-mysql
+    environment:
+      MYSQL_DATABASE: tickets
+      MYSQL_USER: tickets
+      MYSQL_PASSWORD: tickets
+      MYSQL_ROOT_PASSWORD: root
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
   app:
     build:
       context: .
       dockerfile: Dockerfile
     image: tickets-event-backend:latest
     container_name: tickets-event-backend
+    depends_on:
+      mysql:
+        condition: service_healthy
     ports:
       - "8080:8080"
     environment:
       PORT: "8080"
+      MYSQL_HOST: mysql
+      MYSQL_PORT: "3306"
+      MYSQL_DATABASE: tickets
+      MYSQL_USER: tickets
+      MYSQL_PASSWORD: tickets
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
@@ -16,3 +44,6 @@ services:
       timeout: 5s
       retries: 3
       start_period: 20s
+
+volumes:
+  mysql-data:

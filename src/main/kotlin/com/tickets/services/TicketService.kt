@@ -1,5 +1,6 @@
 package com.tickets.services
 
+import com.tickets.db.TicketsTable
 import com.tickets.models.ManualTicketRequest
 import com.tickets.models.Ticket
 import com.tickets.models.TicketPaymentMethod
@@ -7,10 +8,15 @@ import com.tickets.models.TicketRequest
 import com.tickets.models.TicketStatus
 import java.time.Instant
 import java.util.UUID
-import java.util.concurrent.ConcurrentHashMap
+import org.jetbrains.exposed.sql.ResultRow
+import org.jetbrains.exposed.sql.SortOrder
+import org.jetbrains.exposed.sql.insert
+import org.jetbrains.exposed.sql.selectAll
+import org.jetbrains.exposed.sql.transactions.transaction
+import org.jetbrains.exposed.sql.update
 
 /**
- * In-memory business logic for tickets, backed by a concurrent map.
+ * MySQL-backed business logic for tickets, stored in [TicketsTable].
  * Coordinates with [EventService] to keep seat availability consistent, and with
  * [ClipPaymentRepository] so every CLIP-paid ticket stays linked to its payment status.
  */
@@ -19,15 +25,35 @@ class TicketService(
     private val clipPaymentRepository: ClipPaymentRepository
 ) {
 
-    private val tickets = ConcurrentHashMap<String, Ticket>()
+    private fun ResultRow.toTicket() = Ticket(
+        id = this[TicketsTable.id],
+        eventId = this[TicketsTable.eventId],
+        ownerName = this[TicketsTable.ownerName],
+        ownerEmail = this[TicketsTable.ownerEmail],
+        seatNumber = this[TicketsTable.seatNumber],
+        status = TicketStatus.valueOf(this[TicketsTable.status]),
+        purchasedAt = this[TicketsTable.purchasedAt],
+        paymentMethod = TicketPaymentMethod.valueOf(this[TicketsTable.paymentMethod]),
+        clipPaymentId = this[TicketsTable.clipPaymentId],
+        paymentNotes = this[TicketsTable.paymentNotes]
+    )
 
-    fun getAll(): List<Ticket> = tickets.values.sortedByDescending { it.purchasedAt }
+    fun getAll(): List<Ticket> = transaction {
+        TicketsTable.selectAll()
+            .orderBy(TicketsTable.purchasedAt to SortOrder.DESC)
+            .map { it.toTicket() }
+    }
 
-    fun getById(id: String): Ticket =
-        tickets[id] ?: throw NotFoundException("Ticket with id '$id' not found")
+    fun getById(id: String): Ticket = transaction {
+        TicketsTable.selectAll().where { TicketsTable.id eq id }
+            .map { it.toTicket() }
+            .firstOrNull()
+    } ?: throw NotFoundException("Ticket with id '$id' not found")
 
-    fun getByEvent(eventId: String): List<Ticket> =
-        tickets.values.filter { it.eventId == eventId }
+    fun getByEvent(eventId: String): List<Ticket> = transaction {
+        TicketsTable.selectAll().where { TicketsTable.eventId eq eventId }
+            .map { it.toTicket() }
+    }
 
     /**
      * Purchase a ticket for an event paid via CLIP. The referenced CLIP payment must already be
@@ -74,7 +100,7 @@ class TicketService(
             paymentMethod = TicketPaymentMethod.CLIP,
             clipPaymentId = request.clipPaymentId
         )
-        tickets[ticket.id] = ticket
+        insertTicket(ticket)
         clipPaymentRepository.linkTicket(request.clipPaymentId, ticket.id)
         return ticket
     }
@@ -110,8 +136,25 @@ class TicketService(
             paymentMethod = TicketPaymentMethod.MANUAL,
             paymentNotes = request.paymentNotes
         )
-        tickets[ticket.id] = ticket
+        insertTicket(ticket)
         return ticket
+    }
+
+    private fun insertTicket(ticket: Ticket) {
+        transaction {
+            TicketsTable.insert {
+                it[id] = ticket.id
+                it[eventId] = ticket.eventId
+                it[ownerName] = ticket.ownerName
+                it[ownerEmail] = ticket.ownerEmail
+                it[seatNumber] = ticket.seatNumber
+                it[status] = ticket.status.name
+                it[purchasedAt] = ticket.purchasedAt
+                it[paymentMethod] = ticket.paymentMethod.name
+                it[clipPaymentId] = ticket.clipPaymentId
+                it[paymentNotes] = ticket.paymentNotes
+            }
+        }
     }
 
     /** Resolves/validates the seat number to assign, using the next free seat if none was requested. */
@@ -144,7 +187,11 @@ class TicketService(
             throw BadRequestException("Ticket '$id' is already cancelled")
         }
         val cancelled = ticket.copy(status = TicketStatus.CANCELLED)
-        tickets[id] = cancelled
+        transaction {
+            TicketsTable.update({ TicketsTable.id eq id }) {
+                it[status] = cancelled.status.name
+            }
+        }
         eventService.releaseSeat(ticket.eventId)
         return cancelled
     }

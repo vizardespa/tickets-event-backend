@@ -1,6 +1,7 @@
 val ktorVersion = "2.3.12"
 val kotlinVersion = "2.4.20"
 val logbackVersion = "1.4.14"
+val exposedVersion = "0.56.0"
 
 plugins {
     kotlin("jvm") version "2.4.20"
@@ -37,6 +38,13 @@ dependencies {
 
     // Logging
     implementation("ch.qos.logback:logback-classic:$logbackVersion")
+
+    // Database (MySQL via Exposed + HikariCP)
+    implementation("org.jetbrains.exposed:exposed-core:$exposedVersion")
+    implementation("org.jetbrains.exposed:exposed-dao:$exposedVersion")
+    implementation("org.jetbrains.exposed:exposed-jdbc:$exposedVersion")
+    implementation("com.mysql:mysql-connector-j:8.4.0")
+    implementation("com.zaxxer:HikariCP:5.1.0")
 
     // Testing
     testImplementation("io.ktor:ktor-server-test-host-jvm:$ktorVersion")

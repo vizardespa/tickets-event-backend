@@ -1,5 +1,6 @@
 package com.tickets
 
+import com.tickets.db.DatabaseFactory
 import com.tickets.models.ErrorResponse
 import com.tickets.models.HealthStatus
 import com.tickets.routes.eventRoutes
@@ -39,6 +40,9 @@ fun main() {
 }
 
 fun Application.module() {
+    // Database connection, schema and local-dev seed data
+    DatabaseFactory.init()
+
     // JSON content negotiation
     install(ContentNegotiation) {
         json(Json {
