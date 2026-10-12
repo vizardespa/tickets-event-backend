@@ -34,6 +34,33 @@ data class EventRequest(
 )
 
 /**
+ * A category of ticket for an event (e.g. "general", "pre-sale"), optionally restricted to a
+ * purchase window. A null [purchaseStartAt] means purchases are open immediately; a null
+ * [purchaseEndAt] means purchases never close.
+ */
+@Serializable
+data class TicketType(
+    val id: String,
+    val eventId: String,
+    val name: String,
+    val description: String,
+    val purchaseStartAt: String? = null,
+    val purchaseEndAt: String? = null,
+    val createdAt: String
+)
+
+/**
+ * Payload used when creating or updating a ticket type for an event.
+ */
+@Serializable
+data class TicketTypeRequest(
+    val name: String,
+    val description: String = "",
+    val purchaseStartAt: String? = null,
+    val purchaseEndAt: String? = null
+)
+
+/**
  * Ticket status.
  */
 @Serializable
@@ -67,7 +94,8 @@ data class Ticket(
     val purchasedAt: String,
     val paymentMethod: TicketPaymentMethod,
     val clipPaymentId: String? = null,
-    val paymentNotes: String? = null
+    val paymentNotes: String? = null,
+    val ticketTypeId: String? = null
 )
 
 /**
@@ -82,7 +110,8 @@ data class TicketRequest(
     val ownerName: String,
     val ownerEmail: String,
     val clipPaymentId: String,
-    val seatNumber: Int? = null
+    val seatNumber: Int? = null,
+    val ticketTypeId: String? = null
 )
 
 /**
@@ -95,7 +124,8 @@ data class ManualTicketRequest(
     val ownerName: String,
     val ownerEmail: String,
     val paymentNotes: String,
-    val seatNumber: Int? = null
+    val seatNumber: Int? = null,
+    val ticketTypeId: String? = null
 )
 
 /**

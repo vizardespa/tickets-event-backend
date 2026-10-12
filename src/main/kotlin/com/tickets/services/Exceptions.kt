@@ -19,3 +19,9 @@ class ClipPaymentException(message: String) : RuntimeException(message)
  * Thrown when a caller is not allowed to perform a restricted action (e.g. manual ticket creation).
  */
 class ForbiddenException(message: String) : RuntimeException(message)
+
+/**
+ * Thrown when a CLIP-paid ticket purchase is attempted outside its ticket type's purchase window.
+ * Manual ticket creation never triggers this exception.
+ */
+class TicketPurchaseWindowException(message: String) : RuntimeException(message)

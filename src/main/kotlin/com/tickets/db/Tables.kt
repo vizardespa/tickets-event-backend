@@ -19,6 +19,18 @@ object EventsTable : Table("events") {
     override val primaryKey = PrimaryKey(id)
 }
 
+object TicketTypesTable : Table("ticket_types") {
+    val id = varchar("id", 36)
+    val eventId = varchar("event_id", 36).references(EventsTable.id)
+    val name = varchar("name", 255)
+    val description = text("description")
+    val purchaseStartAt = varchar("purchase_start_at", 64).nullable()
+    val purchaseEndAt = varchar("purchase_end_at", 64).nullable()
+    val createdAt = varchar("created_at", 64)
+
+    override val primaryKey = PrimaryKey(id)
+}
+
 object ClipPaymentsTable : Table("clip_payments") {
     val id = varchar("id", 64)
     val ticketId = varchar("ticket_id", 36).nullable()
@@ -47,6 +59,7 @@ object TicketsTable : Table("tickets") {
     val paymentMethod = varchar("payment_method", 32)
     val clipPaymentId = varchar("clip_payment_id", 64).references(ClipPaymentsTable.id).nullable()
     val paymentNotes = text("payment_notes").nullable()
+    val ticketTypeId = varchar("ticket_type_id", 36).references(TicketTypesTable.id).nullable()
 
     override val primaryKey = PrimaryKey(id)
 }

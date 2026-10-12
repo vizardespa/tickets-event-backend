@@ -22,7 +22,8 @@ import org.jetbrains.exposed.sql.update
  */
 class TicketService(
     private val eventService: EventService,
-    private val clipPaymentRepository: ClipPaymentRepository
+    private val clipPaymentRepository: ClipPaymentRepository,
+    private val ticketTypeService: TicketTypeService
 ) {
 
     private fun ResultRow.toTicket() = Ticket(
@@ -35,7 +36,8 @@ class TicketService(
         purchasedAt = this[TicketsTable.purchasedAt],
         paymentMethod = TicketPaymentMethod.valueOf(this[TicketsTable.paymentMethod]),
         clipPaymentId = this[TicketsTable.clipPaymentId],
-        paymentNotes = this[TicketsTable.paymentNotes]
+        paymentNotes = this[TicketsTable.paymentNotes],
+        ticketTypeId = this[TicketsTable.ticketTypeId]
     )
 
     fun getAll(): List<Ticket> = transaction {
@@ -84,6 +86,18 @@ class TicketService(
         }
 
         val event = eventService.getById(request.eventId)
+
+        val ticketType = request.ticketTypeId?.let { ticketTypeService.getById(it) }
+        if (ticketType != null) {
+            if (ticketType.eventId != request.eventId) {
+                throw BadRequestException(
+                    "Ticket type '${request.ticketTypeId}' does not belong to event '${request.eventId}'"
+                )
+            }
+            // Purchase-window restriction only applies to CLIP-paid purchases.
+            ticketTypeService.validatePurchaseWindow(ticketType)
+        }
+
         val seatNumber = resolveSeatNumber(request.eventId, request.seatNumber, event.totalSeats, event.name)
 
         // Reserve a seat on the event (atomic, throws if sold out).
@@ -98,7 +112,8 @@ class TicketService(
             status = TicketStatus.ACTIVE,
             purchasedAt = Instant.now().toString(),
             paymentMethod = TicketPaymentMethod.CLIP,
-            clipPaymentId = request.clipPaymentId
+            clipPaymentId = request.clipPaymentId,
+            ticketTypeId = request.ticketTypeId
         )
         insertTicket(ticket)
         clipPaymentRepository.linkTicket(request.clipPaymentId, ticket.id)
@@ -121,6 +136,16 @@ class TicketService(
         }
 
         val event = eventService.getById(request.eventId)
+
+        // Manual entries are never subject to the ticket type's purchase window: only confirm
+        // the ticket type (if any) belongs to this event, skip the date check entirely.
+        val ticketType = request.ticketTypeId?.let { ticketTypeService.getById(it) }
+        if (ticketType != null && ticketType.eventId != request.eventId) {
+            throw BadRequestException(
+                "Ticket type '${request.ticketTypeId}' does not belong to event '${request.eventId}'"
+            )
+        }
+
         val seatNumber = resolveSeatNumber(request.eventId, request.seatNumber, event.totalSeats, event.name)
 
         eventService.reserveSeat(request.eventId)
@@ -134,7 +159,8 @@ class TicketService(
             status = TicketStatus.ACTIVE,
             purchasedAt = Instant.now().toString(),
             paymentMethod = TicketPaymentMethod.MANUAL,
-            paymentNotes = request.paymentNotes
+            paymentNotes = request.paymentNotes,
+            ticketTypeId = request.ticketTypeId
         )
         insertTicket(ticket)
         return ticket
@@ -153,6 +179,7 @@ class TicketService(
                 it[paymentMethod] = ticket.paymentMethod.name
                 it[clipPaymentId] = ticket.clipPaymentId
                 it[paymentNotes] = ticket.paymentNotes
+                it[ticketTypeId] = ticket.ticketTypeId
             }
         }
     }

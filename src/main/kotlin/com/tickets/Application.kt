@@ -6,6 +6,7 @@ import com.tickets.models.HealthStatus
 import com.tickets.routes.eventRoutes
 import com.tickets.routes.paymentRoutes
 import com.tickets.routes.ticketRoutes
+import com.tickets.routes.ticketTypeRoutes
 import com.tickets.services.BadRequestException
 import com.tickets.services.ClipPaymentException
 import com.tickets.services.ClipPaymentRepository
@@ -13,7 +14,9 @@ import com.tickets.services.ClipPaymentService
 import com.tickets.services.EventService
 import com.tickets.services.ForbiddenException
 import com.tickets.services.NotFoundException
+import com.tickets.services.TicketPurchaseWindowException
 import com.tickets.services.TicketService
+import com.tickets.services.TicketTypeService
 import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.Application
@@ -93,6 +96,15 @@ fun Application.module() {
                 ErrorResponse(error = "forbidden", message = cause.message ?: "Forbidden")
             )
         }
+        exception<TicketPurchaseWindowException> { call, cause ->
+            call.respond(
+                HttpStatusCode.BadRequest,
+                ErrorResponse(
+                    error = "purchase_window_closed",
+                    message = cause.message ?: "Ticket purchases are closed for this ticket type"
+                )
+            )
+        }
         exception<Throwable> { call, cause ->
             call.respond(
                 HttpStatusCode.InternalServerError,
@@ -104,7 +116,8 @@ fun Application.module() {
     // Dependency wiring (in-memory services)
     val eventService = EventService()
     val clipPaymentRepository = ClipPaymentRepository()
-    val ticketService = TicketService(eventService, clipPaymentRepository)
+    val ticketTypeService = TicketTypeService(eventService)
+    val ticketService = TicketService(eventService, clipPaymentRepository, ticketTypeService)
     val clipPaymentService = ClipPaymentService()
 
     environment.monitor.subscribe(ApplicationStopped) {
@@ -116,6 +129,7 @@ fun Application.module() {
             call.respond(HealthStatus(status = "ok"))
         }
         eventRoutes(eventService)
+        ticketTypeRoutes(ticketTypeService)
         ticketRoutes(ticketService, clipPaymentRepository)
         paymentRoutes(clipPaymentService, clipPaymentRepository)
     }

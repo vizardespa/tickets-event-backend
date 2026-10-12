@@ -37,7 +37,7 @@ object DatabaseFactory {
         Database.connect(dataSource)
 
         transaction {
-            SchemaUtils.create(EventsTable, ClipPaymentsTable, TicketsTable)
+            SchemaUtils.createMissingTablesAndColumns(EventsTable, TicketTypesTable, ClipPaymentsTable, TicketsTable)
             seedSampleEventIfEmpty()
         }
     }
