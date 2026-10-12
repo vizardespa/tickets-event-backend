@@ -8,13 +8,18 @@
       "mainClass": "com.tickets.ApplicationKt",
       "projectName": "tickets-event-backend",
       "classPaths": [
-        "${workspaceFolder}/build/install/tickets-event-backend/lib/**/*.jar"
+        "${workspaceFolder}/build/install/tickets-event-backend/lib/*"
       ],
       "console": "integratedTerminal",
       "env": {
-        "PORT": "8080"
+        "PORT": "8080",
+        "MYSQL_HOST": "localhost",
+        "MYSQL_PORT": "3306",
+        "MYSQL_DATABASE": "tickets",
+        "MYSQL_USER": "tickets",
+        "MYSQL_PASSWORD": "tickets"
       },
-      "preLaunchTask": "Gradle: installDist"
+      "preLaunchTask": "Debug: prepare backend"
     }
   ]
 }

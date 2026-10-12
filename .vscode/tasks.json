@@ -37,6 +37,30 @@
       }
     },
     {
+      "label": "Docker: start MySQL",
+      "type": "shell",
+      "command": "docker",
+      "args": ["compose", "up", "-d", "--wait", "mysql"],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "group": {
+        "kind": "none"
+      },
+      "presentation": {
+        "reveal": "silent",
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "Debug: prepare backend",
+      "dependsOrder": "sequence",
+      "dependsOn": ["Docker: start MySQL", "Gradle: installDist"],
+      "group": {
+        "kind": "none"
+      }
+    },
+    {
       "label": "Gradle: run",
       "type": "shell",
       "command": "${workspaceFolder}/gradlew",
