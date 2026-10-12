@@ -34,9 +34,10 @@ fun Route.paymentRoutes(clipPaymentService: ClipPaymentService, clipPaymentRepos
             call.respond(HttpStatusCode.OK, result)
         }
 
-        // Retrieve our stored copy of a payment without calling CLIP again. Since CLIP does not
-        // retain payment data indefinitely, this is the source of truth until the event is held.
+        // Restricted: retrieve our stored copy of a payment without calling CLIP again. Since CLIP
+        // does not retain payment data indefinitely, this is the source of truth until the event is held.
         get("/{id}/record") {
+            requireAdminKey(call)
             val id = call.parameters["id"] ?: throw BadRequestException("Missing payment id")
             call.respond(clipPaymentRepository.requireById(id))
         }

@@ -29,23 +29,26 @@ fun Route.eventRoutes(eventService: EventService) {
             call.respond(eventService.getById(id))
         }
 
-        // Create event
+        // Restricted: create event
         post {
+            requireAdminKey(call)
             val request = call.receive<EventRequest>()
             val created = eventService.create(request)
             call.respond(HttpStatusCode.Created, created)
         }
 
-        // Update event
+        // Restricted: update event
         put("/{id}") {
+            requireAdminKey(call)
             val id = call.parameters["id"]
                 ?: throw BadRequestException("Missing event id")
             val request = call.receive<EventRequest>()
             call.respond(eventService.update(id, request))
         }
 
-        // Delete event
+        // Restricted: delete event
         delete("/{id}") {
+            requireAdminKey(call)
             val id = call.parameters["id"]
                 ?: throw BadRequestException("Missing event id")
             eventService.delete(id)

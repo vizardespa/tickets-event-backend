@@ -19,13 +19,15 @@ import io.ktor.server.routing.route
 fun Route.ticketRoutes(ticketService: TicketService, clipPaymentRepository: ClipPaymentRepository) {
     route("/api/tickets") {
 
-        // List all tickets
+        // Restricted: list all tickets
         get {
+            requireAdminKey(call)
             call.respond(ticketService.getAll())
         }
 
-        // Get ticket by id
+        // Restricted: get ticket by id
         get("/{id}") {
+            requireAdminKey(call)
             val id = call.parameters["id"]
                 ?: throw BadRequestException("Missing ticket id")
             call.respond(ticketService.getById(id))
@@ -46,8 +48,9 @@ fun Route.ticketRoutes(ticketService: TicketService, clipPaymentRepository: Clip
             call.respond(HttpStatusCode.Created, ticket)
         }
 
-        // Trace a ticket back to its CLIP payment status/record.
+        // Restricted: trace a ticket back to its CLIP payment status/record.
         get("/{id}/payment") {
+            requireAdminKey(call)
             val id = call.parameters["id"]
                 ?: throw BadRequestException("Missing ticket id")
             val ticket = ticketService.getById(id)
@@ -56,8 +59,9 @@ fun Route.ticketRoutes(ticketService: TicketService, clipPaymentRepository: Clip
             call.respond(clipPaymentRepository.requireById(paymentId))
         }
 
-        // Cancel a ticket
+        // Restricted: cancel a ticket
         delete("/{id}") {
+            requireAdminKey(call)
             val id = call.parameters["id"]
                 ?: throw BadRequestException("Missing ticket id")
             val cancelled = ticketService.cancel(id)
