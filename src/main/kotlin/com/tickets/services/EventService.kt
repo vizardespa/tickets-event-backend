@@ -30,7 +30,6 @@ class EventService {
         date = this[EventsTable.date],
         totalSeats = this[EventsTable.totalSeats],
         availableSeats = this[EventsTable.availableSeats],
-        price = this[EventsTable.price],
         createdAt = this[EventsTable.createdAt]
     )
 
@@ -62,7 +61,6 @@ class EventService {
             date = request.date,
             totalSeats = request.totalSeats,
             availableSeats = available,
-            price = request.price,
             createdAt = Instant.now().toString()
         )
         transaction {
@@ -74,7 +72,6 @@ class EventService {
                 it[date] = event.date
                 it[totalSeats] = event.totalSeats
                 it[availableSeats] = event.availableSeats
-                it[price] = event.price
                 it[createdAt] = event.createdAt
             }
         }
@@ -96,8 +93,7 @@ class EventService {
             venue = request.venue,
             date = request.date,
             totalSeats = request.totalSeats,
-            availableSeats = available,
-            price = request.price
+            availableSeats = available
         )
         transaction {
             EventsTable.update({ EventsTable.id eq id }) {
@@ -107,7 +103,6 @@ class EventService {
                 it[date] = updated.date
                 it[totalSeats] = updated.totalSeats
                 it[availableSeats] = updated.availableSeats
-                it[price] = updated.price
             }
         }
         return updated

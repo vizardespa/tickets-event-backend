@@ -14,7 +14,6 @@ data class Event(
     val date: String,
     val totalSeats: Int,
     val availableSeats: Int,
-    val price: Double,
     val createdAt: String
 )
 
@@ -29,14 +28,13 @@ data class EventRequest(
     val venue: String,
     val date: String,
     val totalSeats: Int,
-    val availableSeats: Int? = null,
-    val price: Double
+    val availableSeats: Int? = null
 )
 
 /**
- * A category of ticket for an event (e.g. "general", "pre-sale"), optionally restricted to a
- * purchase window. A null [purchaseStartAt] means purchases are open immediately; a null
- * [purchaseEndAt] means purchases never close.
+ * A category of ticket for an event (e.g. "general", "pre-sale"), each with its own [price].
+ * Optionally restricted to a purchase window: a null [purchaseStartAt] means purchases are open
+ * immediately; a null [purchaseEndAt] means purchases never close.
  */
 @Serializable
 data class TicketType(
@@ -44,6 +42,7 @@ data class TicketType(
     val eventId: String,
     val name: String,
     val description: String,
+    val price: Double,
     val purchaseStartAt: String? = null,
     val purchaseEndAt: String? = null,
     val createdAt: String
@@ -56,6 +55,7 @@ data class TicketType(
 data class TicketTypeRequest(
     val name: String,
     val description: String = "",
+    val price: Double,
     val purchaseStartAt: String? = null,
     val purchaseEndAt: String? = null
 )
@@ -95,14 +95,16 @@ data class Ticket(
     val paymentMethod: TicketPaymentMethod,
     val clipPaymentId: String? = null,
     val paymentNotes: String? = null,
-    val ticketTypeId: String? = null
+    val ticketTypeId: String? = null,
+    val price: Double? = null
 )
 
 /**
  * Payload used when purchasing/creating a ticket paid via CLIP.
  * seatNumber is optional — if omitted the service assigns the next available seat.
  * clipPaymentId must reference an already-successful CLIP payment (see /api/payments/clip),
- * so every ticket created this way can be traced back to its payment status.
+ * so every ticket created this way can be traced back to its payment status. ticketTypeId is
+ * required — its price is snapshotted onto the ticket and its purchase window is enforced.
  */
 @Serializable
 data class TicketRequest(
@@ -110,13 +112,15 @@ data class TicketRequest(
     val ownerName: String,
     val ownerEmail: String,
     val clipPaymentId: String,
-    val seatNumber: Int? = null,
-    val ticketTypeId: String? = null
+    val ticketTypeId: String,
+    val seatNumber: Int? = null
 )
 
 /**
  * Restricted payload used to record a ticket paid by an alternative method (e.g. cash).
  * No CLIP payment is involved; paymentNotes should capture how/when it was collected.
+ * ticketTypeId is required (its price is snapshotted onto the ticket), but unlike [TicketRequest]
+ * its purchase window is never enforced for this manual path.
  */
 @Serializable
 data class ManualTicketRequest(
@@ -124,8 +128,8 @@ data class ManualTicketRequest(
     val ownerName: String,
     val ownerEmail: String,
     val paymentNotes: String,
-    val seatNumber: Int? = null,
-    val ticketTypeId: String? = null
+    val ticketTypeId: String,
+    val seatNumber: Int? = null
 )
 
 /**

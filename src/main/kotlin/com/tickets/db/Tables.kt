@@ -13,7 +13,6 @@ object EventsTable : Table("events") {
     val date = varchar("date", 64)
     val totalSeats = integer("total_seats")
     val availableSeats = integer("available_seats")
-    val price = double("price")
     val createdAt = varchar("created_at", 64)
 
     override val primaryKey = PrimaryKey(id)
@@ -24,6 +23,7 @@ object TicketTypesTable : Table("ticket_types") {
     val eventId = varchar("event_id", 36).references(EventsTable.id)
     val name = varchar("name", 255)
     val description = text("description")
+    val price = double("price")
     val purchaseStartAt = varchar("purchase_start_at", 64).nullable()
     val purchaseEndAt = varchar("purchase_end_at", 64).nullable()
     val createdAt = varchar("created_at", 64)
@@ -60,6 +60,7 @@ object TicketsTable : Table("tickets") {
     val clipPaymentId = varchar("clip_payment_id", 64).references(ClipPaymentsTable.id).nullable()
     val paymentNotes = text("payment_notes").nullable()
     val ticketTypeId = varchar("ticket_type_id", 36).references(TicketTypesTable.id).nullable()
+    val price = double("price").nullable()
 
     override val primaryKey = PrimaryKey(id)
 }

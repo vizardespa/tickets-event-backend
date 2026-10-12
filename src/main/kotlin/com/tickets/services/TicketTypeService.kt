@@ -27,6 +27,7 @@ class TicketTypeService(private val eventService: EventService) {
         eventId = this[TicketTypesTable.eventId],
         name = this[TicketTypesTable.name],
         description = this[TicketTypesTable.description],
+        price = this[TicketTypesTable.price],
         purchaseStartAt = this[TicketTypesTable.purchaseStartAt],
         purchaseEndAt = this[TicketTypesTable.purchaseEndAt],
         createdAt = this[TicketTypesTable.createdAt]
@@ -53,6 +54,7 @@ class TicketTypeService(private val eventService: EventService) {
             eventId = eventId,
             name = request.name,
             description = request.description,
+            price = request.price,
             purchaseStartAt = request.purchaseStartAt,
             purchaseEndAt = request.purchaseEndAt,
             createdAt = Instant.now().toString()
@@ -63,6 +65,7 @@ class TicketTypeService(private val eventService: EventService) {
                 it[this.eventId] = ticketType.eventId
                 it[name] = ticketType.name
                 it[description] = ticketType.description
+                it[price] = ticketType.price
                 it[purchaseStartAt] = ticketType.purchaseStartAt
                 it[purchaseEndAt] = ticketType.purchaseEndAt
                 it[createdAt] = ticketType.createdAt
@@ -78,6 +81,7 @@ class TicketTypeService(private val eventService: EventService) {
         val updated = existing.copy(
             name = request.name,
             description = request.description,
+            price = request.price,
             purchaseStartAt = request.purchaseStartAt,
             purchaseEndAt = request.purchaseEndAt
         )
@@ -85,6 +89,7 @@ class TicketTypeService(private val eventService: EventService) {
             TicketTypesTable.update({ TicketTypesTable.id eq id }) {
                 it[name] = updated.name
                 it[description] = updated.description
+                it[price] = updated.price
                 it[purchaseStartAt] = updated.purchaseStartAt
                 it[purchaseEndAt] = updated.purchaseEndAt
             }
@@ -104,6 +109,9 @@ class TicketTypeService(private val eventService: EventService) {
     private fun validateRequest(request: TicketTypeRequest) {
         if (request.name.isBlank()) {
             throw BadRequestException("name is required")
+        }
+        if (request.price < 0) {
+            throw BadRequestException("price must be >= 0")
         }
         val start = parseInstantOrNull(request.purchaseStartAt, "purchaseStartAt")
         val end = parseInstantOrNull(request.purchaseEndAt, "purchaseEndAt")

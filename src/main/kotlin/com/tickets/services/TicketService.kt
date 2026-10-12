@@ -37,7 +37,8 @@ class TicketService(
         paymentMethod = TicketPaymentMethod.valueOf(this[TicketsTable.paymentMethod]),
         clipPaymentId = this[TicketsTable.clipPaymentId],
         paymentNotes = this[TicketsTable.paymentNotes],
-        ticketTypeId = this[TicketsTable.ticketTypeId]
+        ticketTypeId = this[TicketsTable.ticketTypeId],
+        price = this[TicketsTable.price]
     )
 
     fun getAll(): List<Ticket> = transaction {
@@ -87,16 +88,14 @@ class TicketService(
 
         val event = eventService.getById(request.eventId)
 
-        val ticketType = request.ticketTypeId?.let { ticketTypeService.getById(it) }
-        if (ticketType != null) {
-            if (ticketType.eventId != request.eventId) {
-                throw BadRequestException(
-                    "Ticket type '${request.ticketTypeId}' does not belong to event '${request.eventId}'"
-                )
-            }
-            // Purchase-window restriction only applies to CLIP-paid purchases.
-            ticketTypeService.validatePurchaseWindow(ticketType)
+        val ticketType = ticketTypeService.getById(request.ticketTypeId)
+        if (ticketType.eventId != request.eventId) {
+            throw BadRequestException(
+                "Ticket type '${request.ticketTypeId}' does not belong to event '${request.eventId}'"
+            )
         }
+        // Purchase-window restriction only applies to CLIP-paid purchases.
+        ticketTypeService.validatePurchaseWindow(ticketType)
 
         val seatNumber = resolveSeatNumber(request.eventId, request.seatNumber, event.totalSeats, event.name)
 
@@ -113,7 +112,8 @@ class TicketService(
             purchasedAt = Instant.now().toString(),
             paymentMethod = TicketPaymentMethod.CLIP,
             clipPaymentId = request.clipPaymentId,
-            ticketTypeId = request.ticketTypeId
+            ticketTypeId = ticketType.id,
+            price = ticketType.price
         )
         insertTicket(ticket)
         clipPaymentRepository.linkTicket(request.clipPaymentId, ticket.id)
@@ -138,9 +138,9 @@ class TicketService(
         val event = eventService.getById(request.eventId)
 
         // Manual entries are never subject to the ticket type's purchase window: only confirm
-        // the ticket type (if any) belongs to this event, skip the date check entirely.
-        val ticketType = request.ticketTypeId?.let { ticketTypeService.getById(it) }
-        if (ticketType != null && ticketType.eventId != request.eventId) {
+        // the ticket type belongs to this event, skip the date check entirely.
+        val ticketType = ticketTypeService.getById(request.ticketTypeId)
+        if (ticketType.eventId != request.eventId) {
             throw BadRequestException(
                 "Ticket type '${request.ticketTypeId}' does not belong to event '${request.eventId}'"
             )
@@ -160,7 +160,8 @@ class TicketService(
             purchasedAt = Instant.now().toString(),
             paymentMethod = TicketPaymentMethod.MANUAL,
             paymentNotes = request.paymentNotes,
-            ticketTypeId = request.ticketTypeId
+            ticketTypeId = ticketType.id,
+            price = ticketType.price
         )
         insertTicket(ticket)
         return ticket
@@ -180,6 +181,7 @@ class TicketService(
                 it[clipPaymentId] = ticket.clipPaymentId
                 it[paymentNotes] = ticket.paymentNotes
                 it[ticketTypeId] = ticket.ticketTypeId
+                it[price] = ticket.price
             }
         }
     }
