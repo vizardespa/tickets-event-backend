@@ -1,0 +1,20 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "java",
+      "name": "Run Tickets Event Backend",
+      "request": "launch",
+      "mainClass": "com.tickets.ApplicationKt",
+      "projectName": "tickets-event-backend",
+      "classPaths": [
+        "${workspaceFolder}/build/install/tickets-event-backend/lib/**/*.jar"
+      ],
+      "console": "integratedTerminal",
+      "env": {
+        "PORT": "8080"
+      },
+      "preLaunchTask": "Gradle: installDist"
+    }
+  ]
+}

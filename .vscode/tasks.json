@@ -1,0 +1,75 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Gradle: build",
+      "type": "shell",
+      "command": "${workspaceFolder}/gradlew",
+      "args": ["build"],
+      "windows": {
+        "command": "${workspaceFolder}/gradlew.bat"
+      },
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "problemMatcher": ["$gradle"],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "Gradle: installDist",
+      "type": "shell",
+      "command": "${workspaceFolder}/gradlew",
+      "args": ["installDist"],
+      "windows": {
+        "command": "${workspaceFolder}/gradlew.bat"
+      },
+      "group": {
+        "kind": "none"
+      },
+      "problemMatcher": ["$gradle"],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "Gradle: run",
+      "type": "shell",
+      "command": "${workspaceFolder}/gradlew",
+      "args": ["run"],
+      "windows": {
+        "command": "${workspaceFolder}/gradlew.bat"
+      },
+      "group": {
+        "kind": "none"
+      },
+      "problemMatcher": ["$gradle"],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "Gradle: test",
+      "type": "shell",
+      "command": "${workspaceFolder}/gradlew",
+      "args": ["test"],
+      "windows": {
+        "command": "${workspaceFolder}/gradlew.bat"
+      },
+      "group": {
+        "kind": "test",
+        "isDefault": true
+      },
+      "problemMatcher": ["$gradle"],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      }
+    }
+  ]
+}
