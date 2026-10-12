@@ -1,6 +1,8 @@
 package com.tickets.services
 
+import com.tickets.models.ManualTicketRequest
 import com.tickets.models.Ticket
+import com.tickets.models.TicketPaymentMethod
 import com.tickets.models.TicketRequest
 import com.tickets.models.TicketStatus
 import java.time.Instant
@@ -9,9 +11,13 @@ import java.util.concurrent.ConcurrentHashMap
 
 /**
  * In-memory business logic for tickets, backed by a concurrent map.
- * Coordinates with [EventService] to keep seat availability consistent.
+ * Coordinates with [EventService] to keep seat availability consistent, and with
+ * [ClipPaymentRepository] so every CLIP-paid ticket stays linked to its payment status.
  */
-class TicketService(private val eventService: EventService) {
+class TicketService(
+    private val eventService: EventService,
+    private val clipPaymentRepository: ClipPaymentRepository
+) {
 
     private val tickets = ConcurrentHashMap<String, Ticket>()
 
@@ -24,8 +30,9 @@ class TicketService(private val eventService: EventService) {
         tickets.values.filter { it.eventId == eventId }
 
     /**
-     * Purchase a ticket for an event. Reserves a seat atomically and assigns
-     * a seat number if one was not explicitly requested.
+     * Purchase a ticket for an event paid via CLIP. The referenced CLIP payment must already be
+     * successful and not linked to another ticket, so the ticket can always be traced back to its
+     * payment status.
      */
     fun purchase(request: TicketRequest): Ticket {
         if (request.ownerName.isBlank()) {
@@ -34,26 +41,24 @@ class TicketService(private val eventService: EventService) {
         if (request.ownerEmail.isBlank()) {
             throw BadRequestException("ownerEmail is required")
         }
+        if (request.clipPaymentId.isBlank()) {
+            throw BadRequestException("clipPaymentId is required")
+        }
+
+        val payment = clipPaymentRepository.requireById(request.clipPaymentId)
+        if (payment.ticketId != null) {
+            throw BadRequestException(
+                "CLIP payment '${request.clipPaymentId}' is already linked to a ticket"
+            )
+        }
+        if (!payment.status.equals("success", ignoreCase = true)) {
+            throw BadRequestException(
+                "CLIP payment '${request.clipPaymentId}' is not successful (status=${payment.status})"
+            )
+        }
 
         val event = eventService.getById(request.eventId)
-
-        // Determine seat number: use requested one if free, else next available.
-        val activeSeats = getByEvent(request.eventId)
-            .filter { it.status == TicketStatus.ACTIVE }
-            .map { it.seatNumber }
-            .toSet()
-
-        val seatNumber = request.seatNumber ?: run {
-            (1..event.totalSeats).firstOrNull { it !in activeSeats }
-                ?: throw BadRequestException("No seats available for event '${event.name}'")
-        }
-
-        if (seatNumber < 1 || seatNumber > event.totalSeats) {
-            throw BadRequestException("seatNumber must be between 1 and ${event.totalSeats}")
-        }
-        if (seatNumber in activeSeats) {
-            throw BadRequestException("Seat $seatNumber is already taken")
-        }
+        val seatNumber = resolveSeatNumber(request.eventId, request.seatNumber, event.totalSeats, event.name)
 
         // Reserve a seat on the event (atomic, throws if sold out).
         eventService.reserveSeat(request.eventId)
@@ -65,10 +70,69 @@ class TicketService(private val eventService: EventService) {
             ownerEmail = request.ownerEmail,
             seatNumber = seatNumber,
             status = TicketStatus.ACTIVE,
-            purchasedAt = Instant.now().toString()
+            purchasedAt = Instant.now().toString(),
+            paymentMethod = TicketPaymentMethod.CLIP,
+            clipPaymentId = request.clipPaymentId
+        )
+        tickets[ticket.id] = ticket
+        clipPaymentRepository.linkTicket(request.clipPaymentId, ticket.id)
+        return ticket
+    }
+
+    /**
+     * Restricted path for tickets paid by an alternative method (e.g. cash). No CLIP payment is
+     * involved; callers must be authorized before invoking this (see [requireAdminKey]).
+     */
+    fun purchaseManual(request: ManualTicketRequest): Ticket {
+        if (request.ownerName.isBlank()) {
+            throw BadRequestException("ownerName is required")
+        }
+        if (request.ownerEmail.isBlank()) {
+            throw BadRequestException("ownerEmail is required")
+        }
+        if (request.paymentNotes.isBlank()) {
+            throw BadRequestException("paymentNotes is required")
+        }
+
+        val event = eventService.getById(request.eventId)
+        val seatNumber = resolveSeatNumber(request.eventId, request.seatNumber, event.totalSeats, event.name)
+
+        eventService.reserveSeat(request.eventId)
+
+        val ticket = Ticket(
+            id = UUID.randomUUID().toString(),
+            eventId = request.eventId,
+            ownerName = request.ownerName,
+            ownerEmail = request.ownerEmail,
+            seatNumber = seatNumber,
+            status = TicketStatus.ACTIVE,
+            purchasedAt = Instant.now().toString(),
+            paymentMethod = TicketPaymentMethod.MANUAL,
+            paymentNotes = request.paymentNotes
         )
         tickets[ticket.id] = ticket
         return ticket
+    }
+
+    /** Resolves/validates the seat number to assign, using the next free seat if none was requested. */
+    private fun resolveSeatNumber(eventId: String, requestedSeat: Int?, totalSeats: Int, eventName: String): Int {
+        val activeSeats = getByEvent(eventId)
+            .filter { it.status == TicketStatus.ACTIVE }
+            .map { it.seatNumber }
+            .toSet()
+
+        val seatNumber = requestedSeat ?: run {
+            (1..totalSeats).firstOrNull { it !in activeSeats }
+                ?: throw BadRequestException("No seats available for event '$eventName'")
+        }
+
+        if (seatNumber < 1 || seatNumber > totalSeats) {
+            throw BadRequestException("seatNumber must be between 1 and $totalSeats")
+        }
+        if (seatNumber in activeSeats) {
+            throw BadRequestException("Seat $seatNumber is already taken")
+        }
+        return seatNumber
     }
 
     /**

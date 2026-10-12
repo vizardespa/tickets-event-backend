@@ -43,6 +43,17 @@ enum class TicketStatus {
 }
 
 /**
+ * How a ticket was paid for.
+ */
+@Serializable
+enum class TicketPaymentMethod {
+    /** Paid online via CLIP's Checkout Transparente. Always has a [Ticket.clipPaymentId]. */
+    CLIP,
+    /** Paid via an alternative method (e.g. cash) recorded manually by staff. */
+    MANUAL
+}
+
+/**
  * Represents a ticket purchased for an event.
  */
 @Serializable
@@ -53,18 +64,37 @@ data class Ticket(
     val ownerEmail: String,
     val seatNumber: Int,
     val status: TicketStatus,
-    val purchasedAt: String
+    val purchasedAt: String,
+    val paymentMethod: TicketPaymentMethod,
+    val clipPaymentId: String? = null,
+    val paymentNotes: String? = null
 )
 
 /**
- * Payload used when purchasing/creating a ticket.
+ * Payload used when purchasing/creating a ticket paid via CLIP.
  * seatNumber is optional — if omitted the service assigns the next available seat.
+ * clipPaymentId must reference an already-successful CLIP payment (see /api/payments/clip),
+ * so every ticket created this way can be traced back to its payment status.
  */
 @Serializable
 data class TicketRequest(
     val eventId: String,
     val ownerName: String,
     val ownerEmail: String,
+    val clipPaymentId: String,
+    val seatNumber: Int? = null
+)
+
+/**
+ * Restricted payload used to record a ticket paid by an alternative method (e.g. cash).
+ * No CLIP payment is involved; paymentNotes should capture how/when it was collected.
+ */
+@Serializable
+data class ManualTicketRequest(
+    val eventId: String,
+    val ownerName: String,
+    val ownerEmail: String,
+    val paymentNotes: String,
     val seatNumber: Int? = null
 )
 

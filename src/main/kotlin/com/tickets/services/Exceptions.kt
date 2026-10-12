@@ -14,3 +14,8 @@ class BadRequestException(message: String) : RuntimeException(message)
  * Thrown when the call to the CLIP payments API fails or CLIP returns an error response.
  */
 class ClipPaymentException(message: String) : RuntimeException(message)
+
+/**
+ * Thrown when a caller is not allowed to perform a restricted action (e.g. manual ticket creation).
+ */
+class ForbiddenException(message: String) : RuntimeException(message)

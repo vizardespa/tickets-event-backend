@@ -7,8 +7,10 @@ import com.tickets.routes.paymentRoutes
 import com.tickets.routes.ticketRoutes
 import com.tickets.services.BadRequestException
 import com.tickets.services.ClipPaymentException
+import com.tickets.services.ClipPaymentRepository
 import com.tickets.services.ClipPaymentService
 import com.tickets.services.EventService
+import com.tickets.services.ForbiddenException
 import com.tickets.services.NotFoundException
 import com.tickets.services.TicketService
 import io.ktor.http.HttpStatusCode
@@ -81,6 +83,12 @@ fun Application.module() {
                 ErrorResponse(error = "clip_payment_error", message = cause.message ?: "CLIP payment failed")
             )
         }
+        exception<ForbiddenException> { call, cause ->
+            call.respond(
+                HttpStatusCode.Forbidden,
+                ErrorResponse(error = "forbidden", message = cause.message ?: "Forbidden")
+            )
+        }
         exception<Throwable> { call, cause ->
             call.respond(
                 HttpStatusCode.InternalServerError,
@@ -91,7 +99,8 @@ fun Application.module() {
 
     // Dependency wiring (in-memory services)
     val eventService = EventService()
-    val ticketService = TicketService(eventService)
+    val clipPaymentRepository = ClipPaymentRepository()
+    val ticketService = TicketService(eventService, clipPaymentRepository)
     val clipPaymentService = ClipPaymentService()
 
     environment.monitor.subscribe(ApplicationStopped) {
@@ -103,7 +112,7 @@ fun Application.module() {
             call.respond(HealthStatus(status = "ok"))
         }
         eventRoutes(eventService)
-        ticketRoutes(ticketService)
-        paymentRoutes(clipPaymentService)
+        ticketRoutes(ticketService, clipPaymentRepository)
+        paymentRoutes(clipPaymentService, clipPaymentRepository)
     }
 }
