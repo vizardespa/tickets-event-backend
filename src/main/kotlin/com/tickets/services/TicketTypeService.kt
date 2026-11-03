@@ -39,6 +39,16 @@ class TicketTypeService(private val eventService: EventService) {
             .map { it.toTicketType() }
     }
 
+    fun getAvailableByEvent(eventId: String): List<TicketType> {
+        eventService.getById(eventId)
+        val now = Instant.now()
+        return getByEvent(eventId).filter { type ->
+            val started = type.purchaseStartAt?.let { !now.isBefore(Instant.parse(it)) } ?: true
+            val notEnded = type.purchaseEndAt?.let { !now.isAfter(Instant.parse(it)) } ?: true
+            started && notEnded
+        }
+    }
+
     fun getById(id: String): TicketType = transaction {
         TicketTypesTable.selectAll().where { TicketTypesTable.id eq id }
             .map { it.toTicketType() }

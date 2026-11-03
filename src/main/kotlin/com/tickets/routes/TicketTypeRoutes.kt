@@ -24,6 +24,13 @@ fun Route.ticketTypeRoutes(ticketTypeService: TicketTypeService) {
             call.respond(ticketTypeService.getByEvent(eventId))
         }
 
+        // Public: ticket types currently purchasable (now within their purchase window)
+        get("/available") {
+            val eventId = call.parameters["eventId"]
+                ?: throw BadRequestException("Missing event id")
+            call.respond(ticketTypeService.getAvailableByEvent(eventId))
+        }
+
         // Restricted: create a ticket type for an event
         post {
             requireAdminKey(call)
