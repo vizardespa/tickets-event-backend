@@ -46,6 +46,9 @@ dependencies {
     implementation("com.mysql:mysql-connector-j:8.4.0")
     implementation("com.zaxxer:HikariCP:5.1.0")
 
+    // Email (AWS SES, isolated in com.tickets.email.ses)
+    implementation("software.amazon.awssdk:sesv2:2.25.60")
+
     // Testing
     testImplementation("io.ktor:ktor-server-test-host-jvm:$ktorVersion")
     testImplementation(kotlin("test"))

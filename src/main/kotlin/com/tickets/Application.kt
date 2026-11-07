@@ -1,6 +1,8 @@
 package com.tickets
 
 import com.tickets.db.DatabaseFactory
+import com.tickets.email.DefaultTicketEmailService
+import com.tickets.email.EmailSenderFactory
 import com.tickets.models.ErrorResponse
 import com.tickets.models.HealthStatus
 import com.tickets.routes.eventRoutes
@@ -117,7 +119,8 @@ fun Application.module() {
     val eventService = EventService()
     val clipPaymentRepository = ClipPaymentRepository()
     val ticketTypeService = TicketTypeService(eventService)
-    val ticketService = TicketService(eventService, clipPaymentRepository, ticketTypeService)
+    val ticketEmailService = DefaultTicketEmailService(EmailSenderFactory.fromEnvironment())
+    val ticketService = TicketService(eventService, clipPaymentRepository, ticketTypeService, ticketEmailService)
     val clipPaymentService = ClipPaymentService()
 
     environment.monitor.subscribe(ApplicationStopped) {

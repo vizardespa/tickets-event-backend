@@ -1,6 +1,7 @@
 package com.tickets.services
 
 import com.tickets.db.TicketsTable
+import com.tickets.email.TicketEmailService
 import com.tickets.models.ManualTicketRequest
 import com.tickets.models.Ticket
 import com.tickets.models.TicketPaymentMethod
@@ -23,7 +24,8 @@ import org.jetbrains.exposed.sql.update
 class TicketService(
     private val eventService: EventService,
     private val clipPaymentRepository: ClipPaymentRepository,
-    private val ticketTypeService: TicketTypeService
+    private val ticketTypeService: TicketTypeService,
+    private val ticketEmailService: TicketEmailService
 ) {
 
     private fun ResultRow.toTicket() = Ticket(
@@ -117,6 +119,7 @@ class TicketService(
         )
         insertTicket(ticket)
         clipPaymentRepository.linkTicket(request.clipPaymentId, ticket.id)
+        ticketEmailService.sendPurchaseConfirmation(ticket, event)
         return ticket
     }
 
@@ -164,6 +167,7 @@ class TicketService(
             price = ticketType.price
         )
         insertTicket(ticket)
+        ticketEmailService.sendPurchaseConfirmation(ticket, event)
         return ticket
     }
 
