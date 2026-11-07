@@ -111,15 +111,28 @@ curl -X DELETE http://localhost:8080/api/tickets/<ticket-id>
 
 Requires JDK 17.
 
-Set the required admin key from `.env` before running the backend directly:
+Configuration is read from the Git-ignored `.env` file in the project root:
+
+```dotenv
+ADMIN_API_KEY=replace-with-a-long-random-secret
+PORT=8080
+MYSQL_HOST=localhost
+MYSQL_PORT=3306
+MYSQL_DATABASE=tickets
+MYSQL_USER=tickets
+MYSQL_PASSWORD=tickets
+```
+
+The VS Code launch configuration loads it through `envFile`. When launching Gradle
+directly, load it into the shell first:
 
 ```powershell
-$env:ADMIN_API_KEY = (Get-Content .env | Where-Object { $_ -match '^ADMIN_API_KEY=' } | ForEach-Object { $_ -replace '^ADMIN_API_KEY=', '' })
+Get-Content .env | Where-Object { $_ -match '^\s*[^#=]+=' } | ForEach-Object { $k,$v = $_ -split '=',2; Set-Item "env:$($k.Trim())" $v }
 .\gradlew.bat run
 ```
 
-Docker Compose loads `.env` automatically, so this step is only needed when launching
-Gradle directly.
+Docker Compose reads `.env` automatically, but only `ADMIN_API_KEY` is used there; the
+database settings are fixed in `docker-compose.yml` (with `MYSQL_HOST=mysql`).
 
 ```bash
 ./gradlew run

@@ -11,14 +11,7 @@
         "${workspaceFolder}/build/install/tickets-event-backend/lib/*"
       ],
       "console": "integratedTerminal",
-      "env": {
-        "PORT": "8080",
-        "MYSQL_HOST": "localhost",
-        "MYSQL_PORT": "3306",
-        "MYSQL_DATABASE": "tickets",
-        "MYSQL_USER": "tickets",
-        "MYSQL_PASSWORD": "tickets"
-      },
+      "envFile": "${workspaceFolder}/.env",
       "preLaunchTask": "Debug: prepare backend"
     }
   ]
