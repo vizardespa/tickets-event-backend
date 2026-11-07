@@ -111,6 +111,16 @@ curl -X DELETE http://localhost:8080/api/tickets/<ticket-id>
 
 Requires JDK 17.
 
+Set the required admin key from `.env` before running the backend directly:
+
+```powershell
+$env:ADMIN_API_KEY = (Get-Content .env | Where-Object { $_ -match '^ADMIN_API_KEY=' } | ForEach-Object { $_ -replace '^ADMIN_API_KEY=', '' })
+.\gradlew.bat run
+```
+
+Docker Compose loads `.env` automatically, so this step is only needed when launching
+Gradle directly.
+
 ```bash
 ./gradlew run
 ```
@@ -125,6 +135,16 @@ Build a distributable:
 ```
 
 ## Running with Docker Compose
+
+Configure the required admin key in a local `.env` file before starting the stack:
+
+```dotenv
+ADMIN_API_KEY=replace-with-a-long-random-secret
+```
+
+The `.env` file is ignored by Git. Compose passes this value to the backend as
+`ADMIN_API_KEY`; the server refuses to start if it is missing or empty. Send the same
+value in the `X-Admin-Key` header when calling restricted endpoints.
 
 ```bash
 docker compose up --build

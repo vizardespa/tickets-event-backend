@@ -11,7 +11,13 @@ import io.ktor.server.request.header
  * TODO: replace with a real auth mechanism (e.g. ktor-server-auth) if stronger access control
  * is needed; this is the minimal fit since no auth plugin exists in this project today.
  */
-private val adminApiKey: String = System.getenv("ADMIN_API_KEY") ?: "REPLACE_WITH_ADMIN_API_KEY"
+private val adminApiKey: String? = System.getenv("ADMIN_API_KEY")
+
+fun requireConfiguredAdminApiKey() {
+    check(!adminApiKey.isNullOrBlank() && adminApiKey != "REPLACE_WITH_ADMIN_API_KEY") {
+        "ADMIN_API_KEY must be configured with a non-empty secret"
+    }
+}
 
 /** Guards a restricted route behind the `X-Admin-Key` header. */
 fun requireAdminKey(call: ApplicationCall) {

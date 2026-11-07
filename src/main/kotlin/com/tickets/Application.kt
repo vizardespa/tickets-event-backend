@@ -7,6 +7,7 @@ import com.tickets.models.ErrorResponse
 import com.tickets.models.HealthStatus
 import com.tickets.routes.eventRoutes
 import com.tickets.routes.paymentRoutes
+import com.tickets.routes.requireConfiguredAdminApiKey
 import com.tickets.routes.ticketRoutes
 import com.tickets.routes.ticketTypeRoutes
 import com.tickets.services.BadRequestException
@@ -45,6 +46,8 @@ fun main() {
 }
 
 fun Application.module() {
+    requireConfiguredAdminApiKey()
+
     // Database connection, schema and local-dev seed data
     DatabaseFactory.init()
 
@@ -70,6 +73,7 @@ fun Application.module() {
         allowMethod(HttpMethod.Options)
         allowHeader(HttpHeaders.ContentType)
         allowHeader(HttpHeaders.Authorization)
+        allowHeader("X-Admin-Key")
     }
 
     // Centralized error handling

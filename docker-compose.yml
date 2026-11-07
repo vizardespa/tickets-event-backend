@@ -37,6 +37,7 @@ services:
       MYSQL_DATABASE: tickets
       MYSQL_USER: tickets
       MYSQL_PASSWORD: tickets
+      ADMIN_API_KEY: ${ADMIN_API_KEY:?Set ADMIN_API_KEY in the backend .env file}
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
