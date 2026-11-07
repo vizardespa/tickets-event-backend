@@ -82,7 +82,7 @@ class TicketService(
                 "CLIP payment '${request.clipPaymentId}' is already linked to a ticket"
             )
         }
-        if (!payment.status.equals("success", ignoreCase = true)) {
+        if (!payment.status.equals("approved", ignoreCase = true)) {
             throw BadRequestException(
                 "CLIP payment '${request.clipPaymentId}' is not successful (status=${payment.status})"
             )

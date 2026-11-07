@@ -14,7 +14,14 @@ data class ClipPaymentRequest(
     val description: String,
     val cardToken: String,
     val customerEmail: String,
-    val customerPhone: String
+    val customerPhone: String,
+    val customerFirstName: String? = null,
+    val customerLastName: String? = null,
+    val externalReference: String? = null,
+    val sessionId: String? = null,
+    val userAgent: String? = null,
+    val request3ds: Boolean? = null,
+    val installments: Int? = null
 )
 
 /**
@@ -27,7 +34,24 @@ data class ClipApiPaymentPayload(
     val currency: String,
     val description: String,
     @SerialName("payment_method") val paymentMethod: ClipApiPaymentMethod,
-    val customer: ClipApiCustomer
+    val customer: ClipApiCustomer,
+    @SerialName("external_reference") val externalReference: String? = null,
+    @SerialName("webhook_url") val webhookUrl: String? = null,
+    @SerialName("prevention_data") val preventionData: ClipApiPreventionData? = null,
+    val location: ClipApiLocation? = null,
+    val installments: Int? = null
+)
+
+@Serializable
+data class ClipApiPreventionData(
+    @SerialName("session_id") val sessionId: String? = null,
+    @SerialName("user_agent") val userAgent: String? = null,
+    @SerialName("request_3ds") val request3ds: Boolean? = null
+)
+
+@Serializable
+data class ClipApiLocation(
+    val ip: String? = null
 )
 
 @Serializable
@@ -38,7 +62,9 @@ data class ClipApiPaymentMethod(
 @Serializable
 data class ClipApiCustomer(
     val email: String,
-    val phone: String
+    val phone: String,
+    @SerialName("first_name") val firstName: String? = null,
+    @SerialName("last_name") val lastName: String? = null
 )
 
 /**

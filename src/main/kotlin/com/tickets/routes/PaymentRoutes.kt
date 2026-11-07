@@ -5,7 +5,10 @@ import com.tickets.services.ClipPaymentRepository
 import com.tickets.services.ClipPaymentService
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.call
+import io.ktor.server.plugins.origin
 import io.ktor.server.request.receive
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import io.ktor.server.response.respond
 import com.tickets.services.BadRequestException
 import io.ktor.server.routing.Route
@@ -19,10 +22,25 @@ fun Route.paymentRoutes(clipPaymentService: ClipPaymentService, clipPaymentRepos
         // Charge a card via CLIP's Checkout Transparente (POST /Payments).
         post("/clip") {
             val request = call.receive<ClipPaymentRequest>()
-            val result = clipPaymentService.charge(request)
+            val result = clipPaymentService.charge(
+                request,
+                call.request.headers["X-Forwarded-For"]?.substringBefore(',')?.trim()
+                    ?: call.request.origin.remoteHost
+            )
             // Persist our durable copy immediately, regardless of whether a ticket is created.
             clipPaymentRepository.upsert(result)
             call.respond(HttpStatusCode.OK, result)
+        }
+
+        // Webhook target for CLIP (set CLIP_WEBHOOK_URL to this route's public URL). The payload is
+        // only a trigger: we re-query CLIP for the authoritative status and persist it.
+        post("/clip/webhook") {
+            val body = runCatching { call.receive<JsonObject>() }.getOrNull()
+            val id = listOf("id", "payment_id", "paymentId").firstNotNullOfOrNull { key ->
+                (body?.get(key) as? JsonPrimitive)?.content
+            } ?: throw BadRequestException("Missing payment id")
+            clipPaymentRepository.upsert(clipPaymentService.getStatus(id))
+            call.respond(HttpStatusCode.OK)
         }
 
         // Check the final status of a payment, e.g. after a 3DS authentication flow.

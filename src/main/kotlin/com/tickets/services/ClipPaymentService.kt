@@ -1,8 +1,10 @@
 package com.tickets.services
 
 import com.tickets.models.ClipApiCustomer
+import com.tickets.models.ClipApiLocation
 import com.tickets.models.ClipApiPaymentMethod
 import com.tickets.models.ClipApiPaymentPayload
+import com.tickets.models.ClipApiPreventionData
 import com.tickets.models.ClipPaymentRequest
 import com.tickets.models.ClipPaymentResponse
 import io.ktor.client.HttpClient
@@ -31,6 +33,7 @@ import kotlinx.serialization.json.Json
 class ClipPaymentService(
     private val baseUrl: String = "https://api.payclip.com",
     private val clipApiKey: String = System.getenv("CLIP_API_KEY") ?: "REPLACE_WITH_CLIP_API_KEY",
+    private val webhookUrl: String? = System.getenv("CLIP_WEBHOOK_URL")?.takeIf { it.isNotBlank() },
     private val client: HttpClient = HttpClient(CIO) {
         install(ContentNegotiation) {
             json(Json {
@@ -45,7 +48,7 @@ class ClipPaymentService(
      * Validates the incoming request, forwards it to CLIP, and returns the parsed response
      * so callers can decide on next steps based on `status` / `status_detail`.
      */
-    suspend fun charge(request: ClipPaymentRequest): ClipPaymentResponse {
+    suspend fun charge(request: ClipPaymentRequest, clientIp: String? = null): ClipPaymentResponse {
         validate(request)
 
         val payload = ClipApiPaymentPayload(
@@ -53,7 +56,21 @@ class ClipPaymentService(
             currency = request.currency,
             description = request.description,
             paymentMethod = ClipApiPaymentMethod(token = request.cardToken),
-            customer = ClipApiCustomer(email = request.customerEmail, phone = request.customerPhone)
+            customer = ClipApiCustomer(
+                email = request.customerEmail,
+                phone = request.customerPhone,
+                firstName = request.customerFirstName?.takeIf { it.isNotBlank() },
+                lastName = request.customerLastName?.takeIf { it.isNotBlank() }
+            ),
+            externalReference = request.externalReference?.takeIf { it.isNotBlank() },
+            webhookUrl = webhookUrl,
+            preventionData = ClipApiPreventionData(
+                sessionId = request.sessionId?.takeIf { it.isNotBlank() },
+                userAgent = request.userAgent?.takeIf { it.isNotBlank() },
+                request3ds = request.request3ds
+            ),
+            location = clientIp?.takeIf { it.isNotBlank() }?.let { ClipApiLocation(ip = it) },
+            installments = request.installments?.takeIf { it > 1 }
         )
 
         val response: HttpResponse = try {
