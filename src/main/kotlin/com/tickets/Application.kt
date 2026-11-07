@@ -138,6 +138,6 @@ fun Application.module() {
         eventRoutes(eventService)
         ticketTypeRoutes(ticketTypeService)
         ticketRoutes(ticketService, clipPaymentRepository)
-        paymentRoutes(clipPaymentService, clipPaymentRepository)
+        paymentRoutes(clipPaymentService, clipPaymentRepository, ticketService)
     }
 }

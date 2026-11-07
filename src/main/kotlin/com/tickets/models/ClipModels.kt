@@ -21,7 +21,20 @@ data class ClipPaymentRequest(
     val sessionId: String? = null,
     val userAgent: String? = null,
     val request3ds: Boolean? = null,
-    val installments: Int? = null
+    val installments: Int? = null,
+    val pendingTicket: PendingTicketDetails? = null
+)
+
+/**
+ * Ticket details saved alongside a payment that needs 3DS, so the backend can still create the
+ * ticket from the CLIP webhook if the customer's browser never reports back.
+ */
+@Serializable
+data class PendingTicketDetails(
+    val eventId: String,
+    val ticketTypeId: String,
+    val ownerName: String,
+    val ownerEmail: String
 )
 
 /**
@@ -121,7 +134,8 @@ data class ClipPayment(
     val receiptNo: String? = null,
     val clipCreatedAt: String? = null,
     val recordedAt: String,
-    val updatedAt: String
+    val updatedAt: String,
+    val pendingTicket: PendingTicketDetails? = null
 )
 
 /**
@@ -145,6 +159,7 @@ fun ClipPaymentResponse.toClipPayment(existing: ClipPayment? = null): ClipPaymen
         receiptNo = receiptNo,
         clipCreatedAt = createdAt,
         recordedAt = existing?.recordedAt ?: now,
-        updatedAt = now
+        updatedAt = now,
+        pendingTicket = existing?.pendingTicket
     )
 }

@@ -3,8 +3,11 @@ package com.tickets.routes
 import com.tickets.models.ClipPaymentRequest
 import com.tickets.services.ClipPaymentRepository
 import com.tickets.services.ClipPaymentService
+import com.tickets.services.TicketService
 import io.ktor.http.HttpStatusCode
+import io.ktor.server.application.application
 import io.ktor.server.application.call
+import io.ktor.server.application.log
 import io.ktor.server.plugins.origin
 import io.ktor.server.request.receive
 import kotlinx.serialization.json.JsonObject
@@ -16,7 +19,11 @@ import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 import io.ktor.server.routing.route
 
-fun Route.paymentRoutes(clipPaymentService: ClipPaymentService, clipPaymentRepository: ClipPaymentRepository) {
+fun Route.paymentRoutes(
+    clipPaymentService: ClipPaymentService,
+    clipPaymentRepository: ClipPaymentRepository,
+    ticketService: TicketService
+) {
     route("/api/payments") {
 
         // Charge a card via CLIP's Checkout Transparente (POST /Payments).
@@ -29,6 +36,10 @@ fun Route.paymentRoutes(clipPaymentService: ClipPaymentService, clipPaymentRepos
             )
             // Persist our durable copy immediately, regardless of whether a ticket is created.
             clipPaymentRepository.upsert(result)
+            val pending = request.pendingTicket
+            if (pending != null && result.id != null && result.statusDetail?.code == "PE-3DS01") {
+                clipPaymentRepository.savePendingTicket(result.id, pending)
+            }
             call.respond(HttpStatusCode.OK, result)
         }
 
@@ -40,6 +51,8 @@ fun Route.paymentRoutes(clipPaymentService: ClipPaymentService, clipPaymentRepos
                 (body?.get(key) as? JsonPrimitive)?.content
             } ?: throw BadRequestException("Missing payment id")
             clipPaymentRepository.upsert(clipPaymentService.getStatus(id))
+            runCatching { ticketService.completePendingTicket(id) }
+                .onFailure { call.application.log.error("Could not create ticket for CLIP payment $id", it) }
             call.respond(HttpStatusCode.OK)
         }
 

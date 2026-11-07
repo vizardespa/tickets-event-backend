@@ -28,6 +28,8 @@ class TicketService(
     private val ticketEmailService: TicketEmailService
 ) {
 
+    private val paymentLocks = java.util.concurrent.ConcurrentHashMap<String, Any>()
+
     private fun ResultRow.toTicket() = Ticket(
         id = this[TicketsTable.id],
         eventId = this[TicketsTable.eventId],
@@ -66,6 +68,36 @@ class TicketService(
      * payment status.
      */
     fun purchase(request: TicketRequest): Ticket {
+        if (request.clipPaymentId.isBlank()) {
+            throw BadRequestException("clipPaymentId is required")
+        }
+        val lock = paymentLocks.computeIfAbsent(request.clipPaymentId) { Any() }
+        return synchronized(lock) { purchaseLocked(request) }
+    }
+
+    /**
+     * Called when CLIP reports a payment (e.g. via webhook). If the payment is approved, still has
+     * no ticket and has saved pending details (3DS flow), creates the ticket. Returns null when
+     * there is nothing to do.
+     */
+    fun completePendingTicket(paymentId: String): Ticket? {
+        val payment = clipPaymentRepository.getById(paymentId) ?: return null
+        val pending = payment.pendingTicket ?: return null
+        if (payment.ticketId != null || !payment.status.equals("approved", ignoreCase = true)) {
+            return null
+        }
+        return purchase(
+            TicketRequest(
+                eventId = pending.eventId,
+                ownerName = pending.ownerName,
+                ownerEmail = pending.ownerEmail,
+                clipPaymentId = paymentId,
+                ticketTypeId = pending.ticketTypeId
+            )
+        )
+    }
+
+    private fun purchaseLocked(request: TicketRequest): Ticket {
         if (request.ownerName.isBlank()) {
             throw BadRequestException("ownerName is required")
         }
@@ -78,6 +110,10 @@ class TicketService(
 
         val payment = clipPaymentRepository.requireById(request.clipPaymentId)
         if (payment.ticketId != null) {
+            val existing = getById(payment.ticketId)
+            if (existing.eventId == request.eventId && existing.ticketTypeId == request.ticketTypeId) {
+                return existing
+            }
             throw BadRequestException(
                 "CLIP payment '${request.clipPaymentId}' is already linked to a ticket"
             )

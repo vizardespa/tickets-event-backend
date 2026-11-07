@@ -44,6 +44,10 @@ object ClipPaymentsTable : Table("clip_payments") {
     val clipCreatedAt = varchar("clip_created_at", 64).nullable()
     val recordedAt = varchar("recorded_at", 64)
     val updatedAt = varchar("updated_at", 64)
+    val pendingEventId = varchar("pending_event_id", 36).nullable()
+    val pendingTicketTypeId = varchar("pending_ticket_type_id", 36).nullable()
+    val pendingOwnerName = varchar("pending_owner_name", 255).nullable()
+    val pendingOwnerEmail = varchar("pending_owner_email", 255).nullable()
 
     override val primaryKey = PrimaryKey(id)
 }

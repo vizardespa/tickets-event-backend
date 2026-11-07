@@ -3,6 +3,7 @@ package com.tickets.services
 import com.tickets.db.ClipPaymentsTable
 import com.tickets.models.ClipPayment
 import com.tickets.models.ClipPaymentResponse
+import com.tickets.models.PendingTicketDetails
 import com.tickets.models.toClipPayment
 import java.time.Instant
 import org.jetbrains.exposed.sql.ResultRow
@@ -33,7 +34,15 @@ class ClipPaymentRepository {
         receiptNo = this[ClipPaymentsTable.receiptNo],
         clipCreatedAt = this[ClipPaymentsTable.clipCreatedAt],
         recordedAt = this[ClipPaymentsTable.recordedAt],
-        updatedAt = this[ClipPaymentsTable.updatedAt]
+        updatedAt = this[ClipPaymentsTable.updatedAt],
+        pendingTicket = this[ClipPaymentsTable.pendingEventId]?.let { eventId ->
+            PendingTicketDetails(
+                eventId = eventId,
+                ticketTypeId = this[ClipPaymentsTable.pendingTicketTypeId] ?: return@let null,
+                ownerName = this[ClipPaymentsTable.pendingOwnerName] ?: return@let null,
+                ownerEmail = this[ClipPaymentsTable.pendingOwnerEmail] ?: return@let null
+            )
+        }
     )
 
     private fun findById(id: String): ClipPayment? = ClipPaymentsTable.selectAll()
@@ -76,6 +85,16 @@ class ClipPaymentRepository {
             }
         }
         record
+    }
+
+    /** Saves the ticket details to create once a pending (3DS) payment is approved. */
+    fun savePendingTicket(paymentId: String, details: PendingTicketDetails) = transaction {
+        ClipPaymentsTable.update({ ClipPaymentsTable.id eq paymentId }) {
+            it[pendingEventId] = details.eventId
+            it[pendingTicketTypeId] = details.ticketTypeId
+            it[pendingOwnerName] = details.ownerName
+            it[pendingOwnerEmail] = details.ownerEmail
+        }
     }
 
     fun getById(id: String): ClipPayment? = transaction { findById(id) }
